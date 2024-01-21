@@ -46,11 +46,21 @@ async fn handler(
 ) {
     dotenv().ok();
     logger::init();
-    log::info!("HEADER: {:?}", headers);
-
     let json: Value = serde_json::from_slice(&body).unwrap();
     log::info!("Input JSON: {}", serde_json::to_string_pretty(&json).unwrap());
     let event_type = json.get("type").expect("Must have event type").as_str().unwrap();
+
+    log::info!("HEADER: {:?}", headers);
+    let allowed_ips = vec!["3.18.12.63", "3.130.192.231", "13.235.14.237", "13.235.122.149", "18.211.135.69", "35.154.171.200", "52.15.183.38", "54.88.130.119", "54.88.130.237", "54.187.174.169", "54.187.205.235", "54.187.216.72"];
+    for (k, v) in &headers {
+        if k == "x-real-ip" {
+            if !allowed_ips.contains(&v.as_str()) {
+                log::warn!("Webhook request from an unauthorized IP address {} : {}", k, v);
+                send_response(401, vec![(String::from("content-type"), String::from("text/plain"))], "".as_bytes().to_vec());
+                return;
+            }
+        }
+    }
 
     if event_type == "checkout.session.completed" {
         let checkout_session = json.get("data").unwrap().get("object").unwrap();
