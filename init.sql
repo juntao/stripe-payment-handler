@@ -17,6 +17,6 @@ CREATE TABLE subscription_events (
     event_type VARCHAR(128) DEFAULT "",
     owner_repo VARCHAR(1024) DEFAULT "",
     sub_id VARCHAR(256) DEFAULT "",
-    messgae TEXT,
+    message TEXT,
     PRIMARY KEY (eid)
-};
+);
