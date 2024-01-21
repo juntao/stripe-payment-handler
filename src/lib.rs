@@ -103,7 +103,7 @@ async fn handler(
     } else if event_type.starts_with("customer.subscription") {
 
         let subscription = json.get("data").unwrap().get("object").unwrap();
-        let sub_id = subscription.get("id").unwrap();
+        let sub_id = subscription.get("id").unwrap().as_str().unwrap();
         let pool = get_conn_pool();
         let mut conn = pool.get_conn().await.unwrap();
 
