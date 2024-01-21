@@ -9,3 +9,14 @@ CREATE TABLE repos (
     sub_update TEXT,
     PRIMARY KEY (or_id)
 );
+
+CREATE TABLE subscription_events (
+    eid INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    created_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    event_type VARCHAR(128) DEFAULT "",
+    owner_repo VARCHAR(1024) DEFAULT "",
+    sub_id VARCHAR(256) DEFAULT "",
+    messgae TEXT,
+    PRIMARY KEY (eid)
+};

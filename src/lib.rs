@@ -14,8 +14,6 @@ struct OwnerRepo {
     owner_repo: String,
     count: u64,
     sub_id: String,
-    checkout_session: String,
-    sub_update: String,
 }
 impl OwnerRepo {
     fn new(
@@ -23,16 +21,12 @@ impl OwnerRepo {
         owner_repo: String,
         count: u64,
         sub_id: String,
-        checkout_session: String,
-        sub_update: String,
     ) -> Self {
         Self {
             or_id,
             owner_repo,
             count,
             sub_id,
-            checkout_session,
-            sub_update,
         }
     }
 }
@@ -73,28 +67,34 @@ async fn handler(
               .with(params! {
                 "owner_repo" => owner_repo.to_uppercase(),
               }).map(&mut conn, |(or_id, count, sub_id)|
-                  OwnerRepo::new(or_id, owner_repo.to_string(), count, sub_id, "".to_string(), "".to_string())
+                  OwnerRepo::new(or_id, owner_repo.to_string(), count, sub_id)
               ).await.unwrap();
 
             if repos.len() < 1 {
-                r"INSERT INTO repos (owner_repo, count, sub_id, checkout_session, sub_update)
-                VALUES (:owner_repo, :count, :sub_id, :checkout_session, :sub_update)"
+                r"INSERT INTO repos (owner_repo, count, sub_id)
+                VALUES (:owner_repo, :count, :sub_id)"
                   .with(params! {
                     "owner_repo" => owner_repo.clone().to_uppercase(),
                     "count" => 0,
-                    "sub_id" => sub_id.clone(),
-                    "checkout_session" => serde_json::to_string_pretty(&json).unwrap(),
-                    "sub_update" => "".to_string(),
+                    "sub_id" => sub_id,
                   }).ignore(&mut conn).await.unwrap();
 
             } else {
-                r"UPDATE repos SET sub_id=:sub_id, checkout_session=:checkout_session WHERE or_id=:or_id"
+                r"UPDATE repos SET sub_id=:sub_id WHERE or_id=:or_id"
                   .with(params! {
-                    "sub_id" => sub_id.clone(),
-                    "checkout_session" => serde_json::to_string_pretty(&json).unwrap(),
+                    "sub_id" => sub_id,
                     "or_id" => repos[0].or_id,
                   }).ignore(&mut conn).await.unwrap();
             }
+
+            r"INSERT INTO subscription_events (event_type, owner_repo, sub_id, message)
+            VALUES (:owner_repo, :count, :sub_id, :message)"
+              .with(params! {
+                "event_type" => event_type,
+                "owner_repo" => owner_repo.clone().to_uppercase(),
+                "sub_id" => sub_id,
+                "message" => serde_json::to_string_pretty(&json).unwrap(),
+              }).ignore(&mut conn).await.unwrap();
 
             drop(conn);
             pool.disconnect().await.unwrap();
@@ -107,18 +107,21 @@ async fn handler(
         let pool = get_conn_pool();
         let mut conn = pool.get_conn().await.unwrap();
 
-        r"UPDATE repos SET sub_update=:sub_update WHERE sub_id=:sub_id"
-          .with(params! {
-            "sub_update" => serde_json::to_string_pretty(&json).unwrap(),
-            "sub_id" => sub_id,
-          }).ignore(&mut conn).await.unwrap();
-
         if event_type == "customer.subscription.deleted" {
             r"UPDATE repos SET sub_id='' WHERE sub_id=:sub_id"
               .with(params! {
                 "sub_id" => sub_id,
               }).ignore(&mut conn).await.unwrap();
         }
+
+        r"INSERT INTO subscription_events (event_type, owner_repo, sub_id, message)
+        VALUES (:owner_repo, :count, :sub_id, :message)"
+          .with(params! {
+            "event_type" => event_type,
+            "owner_repo" => "".to_string(),
+            "sub_id" => sub_id,
+            "message" => serde_json::to_string_pretty(&json).unwrap(),
+          }).ignore(&mut conn).await.unwrap();
 
         drop(conn);
         pool.disconnect().await.unwrap();
