@@ -39,13 +39,15 @@ pub async fn on_deploy() {
 
 #[request_handler]
 async fn handler(
-    _headers: Vec<(String, String)>,
+    headers: Vec<(String, String)>,
     _subpath: String,
     _qry: HashMap<String, Value>,
     body: Vec<u8>
 ) {
     dotenv().ok();
     logger::init();
+    log::info!("HEADER: {:?}", headers);
+
     let json: Value = serde_json::from_slice(&body).unwrap();
     log::info!("Input JSON: {}", serde_json::to_string_pretty(&json).unwrap());
     let event_type = json.get("type").expect("Must have event type").as_str().unwrap();
