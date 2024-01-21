@@ -88,7 +88,7 @@ async fn handler(
             }
 
             r"INSERT INTO subscription_events (event_type, owner_repo, sub_id, message)
-            VALUES (:owner_repo, :count, :sub_id, :message)"
+            VALUES (:event_type, :owner_repo, :sub_id, :message)"
               .with(params! {
                 "event_type" => event_type,
                 "owner_repo" => owner_repo.clone().to_uppercase(),
@@ -115,7 +115,7 @@ async fn handler(
         }
 
         r"INSERT INTO subscription_events (event_type, owner_repo, sub_id, message)
-        VALUES (:owner_repo, :count, :sub_id, :message)"
+        VALUES (:event_type, :owner_repo, :sub_id, :message)"
           .with(params! {
             "event_type" => event_type,
             "owner_repo" => "".to_string(),
