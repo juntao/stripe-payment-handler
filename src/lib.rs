@@ -15,6 +15,7 @@ struct OwnerRepo {
     count: u64,
     sub_id: String,
     checkout_session: String,
+    sub_update: String,
 }
 impl OwnerRepo {
     fn new(
@@ -23,6 +24,7 @@ impl OwnerRepo {
         count: u64,
         sub_id: String,
         checkout_session: String,
+        sub_update: String,
     ) -> Self {
         Self {
             or_id,
@@ -30,6 +32,7 @@ impl OwnerRepo {
             count,
             sub_id,
             checkout_session,
+            sub_update,
         }
     }
 }
@@ -70,17 +73,18 @@ async fn handler(
               .with(params! {
                 "owner_repo" => owner_repo.to_uppercase(),
               }).map(&mut conn, |(or_id, count, sub_id)|
-                  OwnerRepo::new(or_id, owner_repo.to_string(), count, sub_id, "".to_string())
+                  OwnerRepo::new(or_id, owner_repo.to_string(), count, sub_id, "".to_string(), "".to_string())
               ).await.unwrap();
 
             if repos.len() < 1 {
-                r"INSERT INTO repos (owner_repo, count, sub_id, checkout_session)
-                VALUES (:owner_repo, :count, :sub_id, :checkout_session)"
+                r"INSERT INTO repos (owner_repo, count, sub_id, checkout_session, sub_update)
+                VALUES (:owner_repo, :count, :sub_id, :checkout_session, :sub_update)"
                   .with(params! {
                     "owner_repo" => owner_repo.clone().to_uppercase(),
                     "count" => 0,
                     "sub_id" => sub_id.clone(),
                     "checkout_session" => serde_json::to_string_pretty(&json).unwrap(),
+                    "sub_update" => "".to_string(),
                   }).ignore(&mut conn).await.unwrap();
 
             } else {
@@ -96,16 +100,26 @@ async fn handler(
             pool.disconnect().await.unwrap();
         }
 
-    } else if event_type == "customer.subscription.deleted" {
+    } else if event_type.starts_with("customer.subscription") {
+
         let subscription = json.get("data").unwrap().get("object").unwrap();
         let sub_id = subscription.get("id").unwrap();
-
         let pool = get_conn_pool();
         let mut conn = pool.get_conn().await.unwrap();
-        r"UPDATE repos SET sub_id='' WHERE sub_id=:sub_id"
-            .with(params! {
+
+        r"UPDATE repos SET sub_update=:sub_update WHERE sub_id=:sub_id"
+          .with(params! {
+            "sub_update" => serde_json::to_string_pretty(&json).unwrap(),
+            "sub_id" => sub_id,
+          }).ignore(&mut conn).await.unwrap();
+
+        if event_type == "customer.subscription.deleted" {
+            r"UPDATE repos SET sub_id='' WHERE sub_id=:sub_id"
+              .with(params! {
                 "sub_id" => sub_id,
-            }).ignore(&mut conn).await.unwrap();
+              }).ignore(&mut conn).await.unwrap();
+        }
+
         drop(conn);
         pool.disconnect().await.unwrap();
     }
